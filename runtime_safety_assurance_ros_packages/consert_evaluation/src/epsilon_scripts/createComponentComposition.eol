@@ -1,0 +1,304 @@
+/*
+MIT License
+
+Copyright (c) 2019 DEIS Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+"Creation of component composition started".println();
+
+SystemOfSystems!Demand.all().println("allConSerts ");
+
+
+var systemOfSystemsPackage = SystemOfSystems!SystemOfSystemPackage.all().first();
+
+if(systemOfSystemsPackage = null){
+	throw "System of system package has not been initialized yet.";
+}
+
+var systemWithAppService = systemOfSystemsPackage.serviceProvidingSystem;
+
+if(systemWithAppService = null){
+	throw "No system found which provide application service";
+}
+
+
+
+
+// for each appservice providing config, create a system of systems configuration and add it to system of systems package if creation was successful.
+for(appServConfig in systemWithAppService.configurations){
+	
+	// add first entry in list for avoiding cyclic dependencies: system which provides application service can not be a system that provides a service that is requested by another system.
+	var listOfAlreadyRequestedSystems = new Sequence();
+	listOfAlreadyRequestedSystems.add(systemWithAppService);
+	
+	var systemOfSystemsConfig = systemWithAppService.createSystemOfSystemConfig(appServConfig, listOfAlreadyRequestedSystems);
+	
+	if(systemOfSystemsConfig <> null){
+		systemOfSystemsPackage.systemOfSystemsConfigs.add(systemOfSystemsConfig);
+	}
+}
+
+"Creation of component composition finished".println();
+
+operation SystemOfSystems!System createSystemOfSystemConfig(configOfSystemProvidingAppService : SystemOfSystems!Configuration, listOfAlreadyRequestedSystems : Sequence) : SystemOfSystems!SystemOfSystemsConfig{
+	var systemOfSystemConfig : SystemOfSystems!SystemOfSystemsConfig;
+	
+	var configCompositionTreeForEachProvidedService = new Sequence(); // holds a list of type ConfigCompositionTree. For each provided Service there is one Composition Tree for this config.
+
+	for(providedAppService in configOfSystemProvidingAppService.providedServices.select(provServ | provServ.isApplicationService)){
+		var functionalServiceType = providedAppService.functionalServiceType;
+		if(configOfSystemProvidingAppService.canProvideService(providedAppService.functionalServiceType, self, listOfAlreadyRequestedSystems)){
+			// create config composition tree for this provided app service
+			
+			var configCompositionTree = SystemOfSystems!ConfigCompositionTree.createInstance();
+			configCompositionTree.root = configOfSystemProvidingAppService.createConfigTreeNodeForProvidedService(functionalServiceType, configCompositionTree);
+			configCompositionTreeForEachProvidedService.add(configCompositionTree);
+		}
+	}
+	
+	// if a service can be provided
+	if(configCompositionTreeForEachProvidedService.size() > 0){
+		systemOfSystemConfig = SystemOfSystems!SystemOfSystemsConfig.createInstance();
+		systemOfSystemConfig.name = configOfSystemProvidingAppService.name;
+		systemOfSystemConfig.appServiceProvidingConfig = configOfSystemProvidingAppService;
+		systemOfSystemConfig.configCompositionTreesForProvidedAppServices = configCompositionTreeForEachProvidedService;
+	}
+	
+	return systemOfSystemConfig;
+}
+
+operation SystemOfSystems!Configuration createConfigTreeNodeForProvidedService(serviceType : SystemOfSystems!FunctionalServiceType, tree : SystemOfSystems!ConfigCompositionTree) : SystemOfSystems!ConfigTreeNode {
+	
+	// this variable will be returned
+	var configTreeNode : SystemOfSystems!ConfigTreeNode;
+
+	var nodeAlreadyExists = false;
+	
+	// check if node has been already created 
+	var alreadyExistingNodeForThisConfig = SystemOfSystems!ConfigTreeNode.all().select(configNode | configNode.config = self).first();
+	
+	if(alreadyExistingNodeForThisConfig <> null){
+		// if node already exists, allocate the existing one to the return variable "configTreeNode"
+		configTreeNode = alreadyExistingNodeForThisConfig;
+		nodeAlreadyExists = true;
+	}
+	else{
+		// else create a new one for this config
+		configTreeNode = SystemOfSystems!ConfigTreeNode.createInstance();
+		configTreeNode.config = self;
+		configTreeNode.name = "Node for config " + self.name;
+		configTreeNode.system = self.getSystemOfConfig();
+	}
+	
+	
+	
+	var providedServiceWithSameServiceType = self.providedServices.select(pS | pS.functionalServiceType.equals(serviceType)).first();
+	configTreeNode.serviceToBeProvided = providedServiceWithSameServiceType;
+	
+	
+	var requiredServicesAllocatedToProvidedService = providedServiceWithSameServiceType.allocatedRequiredService;
+	
+	// leaf is reached --> return config tree node without adding child elements
+	if(requiredServicesAllocatedToProvidedService.size() = 0){
+		// add config tree node to tree so it is contained in it, if it has not been added before
+		if(not nodeAlreadyExists){
+			tree.nodes.add(configTreeNode);
+		}
+		return configTreeNode;
+	}
+	/*
+		if there are any required services allocated to the requested provided service,
+		1. create a new child node for required service.
+		2. 
+	 
+	*/
+	for(reqServ in requiredServicesAllocatedToProvidedService){
+	
+		// if the node already exists and there are already child nodes allocated to this required service --> continue with next required service
+		if(nodeAlreadyExists){
+			if(configTreeNode.requiredChildNodesByService.exists(requiredChildNodeByService | requiredChildNodeByService.requiredService = reqServ)){
+				continue;
+			}
+		}
+		
+		// create a new child node by required service object
+		var childNodesForReqService = RequiredChildConfigNodesByRequiredService.createInstance();
+		childNodesForReqService.requiredService = reqServ;
+		
+		var configsProvidingReqServBySystem = reqServ.~choosenProvidingConfigsBySystem;
+		var system = configsProvidingReqServBySystem.keySet().first(); // change algorithm here to allow more systems providing the same service. 
+		
+		// get all config which are providing the required service
+		var providingConfigs = configsProvidingReqServBySystem.get(system);
+		
+		var reqServiceType = reqServ.functionalServiceType;
+
+		var message = "Compare service types:\nserviceType = " + serviceType + " of type " + SystemOfSystems.getTypeOf(serviceType) + "\nreqServiceType = " + reqServiceType + " of type " + SystemOfSystems.getTypeOf(reqServiceType);  
+		message.println();
+		// call this method recursivly for child configs that can provide required service		
+		for(providingConfig in providingConfigs.sortBy(conf | conf.configurationRanking)){
+			childNodesForReqService.childNodesOfConfigsProvidingService.add(providingConfig.createConfigTreeNodeForProvidedService(reqServiceType, tree));
+		}
+		
+		configTreeNode.requiredChildNodesByService.add(childNodesForReqService);
+	}
+	
+	// add config tree node to tree so it is contained in it, if it has not been added before
+	if(not nodeAlreadyExists){
+		tree.nodes.add(configTreeNode);
+	}
+	
+	return configTreeNode;
+}
+
+
+
+operation SystemOfSystems!Configuration canProvideService(requiredServiceType : SystemOfSystems!FunctionalServiceType, systemOfThisConfig : SystemOfSystems!System, listOfRequestedSystems : Sequence) : Boolean {
+
+	var providedServiceWithSameServiceType = self.providedServices.select(pS | pS.functionalServiceType.equals(requiredServiceType)).first();
+	
+	// if configuration does not have a provided service which type equals the requested one, proceed with next config -> return false
+	if(providedServiceWithSameServiceType == null){
+		return false;
+	}
+	
+	var reqServicesAllocatedToMatchingProvService = providedServiceWithSameServiceType.allocatedRequiredService;
+	
+	// if there are no required services allocated to provided service with requested service type, this configuration fulfills requirement and can provide service
+	// --> select this config as one that can provide required service
+	if(not reqServicesAllocatedToMatchingProvService.isDefined() or reqServicesAllocatedToMatchingProvService.size() = 0){
+		return true;
+	}
+	
+	// Map<RequiredService, Map<System, List<Configuration>>>
+	var requiredService2ServingConfigurationsBySystemMap = new Map();
+	
+	// otherwise search for each required service, if another system provides a service with the same type as required service 
+	for(reqService : SystemOfSystems!RequiredService in reqServicesAllocatedToMatchingProvService){
+		
+		if(not reqService.~choosenProvidingConfigsBySystem.isDefined()){
+			reqService.~choosenProvidingConfigsBySystem = new Map();
+		}
+		
+		// the matching configurations for this requiredService have already been looked up --> continue with next required service. 
+		if(reqService.~choosenProvidingConfigsBySystem.size() > 0){
+			continue;
+		}
+		
+		// create a copy of already requested systems and add 
+		var copyOfListOfRequestedSystem = new Sequence();
+		copyOfListOfRequestedSystem.addAll(listOfRequestedSystems);
+		copyOfListOfRequestedSystem.add(systemOfThisConfig);
+		
+		var configsWhichProvideRequiredServiceBySystem = new Map();
+		
+		for(systemNotRequestedYet : SystemOfSystems!System in SystemOfSystems!System.all().excludingAll(copyOfListOfRequestedSystem)){
+			var configsWhichProvidesService = systemNotRequestedYet.determineConfigsThatCanProvideService(reqService.functionalServiceType, copyOfListOfRequestedSystem);
+			
+			if(configsWhichProvidesService.size() > 0){
+				configsWhichProvideRequiredServiceBySystem.put(systemNotRequestedYet, configsWhichProvidesService);
+				break;
+			}
+		}
+		
+		if(configsWhichProvideRequiredServiceBySystem.size() = 1){
+			requiredService2ServingConfigurationsBySystemMap.put(reqService, configsWhichProvideRequiredServiceBySystem);
+		}
+	}
+	
+	// Check if all required services have an entry in requiredService2ServingConfigurationsBySystemMap. If not continue with next configuration of self
+	
+	var requiredServicesWhichCanBeProvided = requiredService2ServingConfigurationsBySystemMap.keySet;
+	
+	// if not all req services can be provided by another system the next configuration of self has to be evaluated
+	if(not requiredServicesWhichCanBeProvided.includesAll(reqServicesAllocatedToMatchingProvService)){
+		return false;
+	}
+	
+	
+	// check if several required services have the same system which can provide it
+	for(reqServCanBeProvided in requiredServicesWhichCanBeProvided){
+		
+		var providingConfigsBySystem = requiredService2ServingConfigurationsBySystemMap.get(reqServCanBeProvided);
+		
+		
+		var system = providingConfigsBySystem.keySet().first();
+		
+		var allOtherReqServ = requiredServicesWhichCanBeProvided.excluding(reqServCanBeProvided);
+		
+		var listOfOtherReqServiceUsingSameSystem = new Sequence();
+		
+		for(otherRS in allOtherReqServ){
+
+			if(requiredService2ServingConfigurationsBySystemMap.get(otherRS).containsKey(system)){
+				listOfOtherReqServiceUsingSameSystem.add(otherRS);
+			}
+		}
+		
+		// if no other req service uses services of same system, set choosenProvidingConfigBySystem of reqServCanBeProvided with all configs set as value for requiredService2ServingConfigurationsBySystemMap map
+		if(listOfOtherReqServiceUsingSameSystem.size() = 0){
+			reqServCanBeProvided.~choosenProvidingConfigsBySystem = requiredService2ServingConfigurationsBySystemMap.get(reqServCanBeProvided);
+		}
+		//else create a union of all common configurations ordered by ranking
+		else{
+		
+			var configsUnion = providingConfigsBySystem.get(system);
+			
+			for(otherRS in listOfOtherReqServiceUsingSameSystem){
+				var configsOfOtherRSBySystem = requiredService2ServingConfigurationsBySystemMap.get(otherRS);
+				configsUnion = configsUnion.includingAll(configsOfOtherRSBySystem.get(system));
+			}
+			
+			if(configsUnion.size() > 0){
+				var configsUnionBySystem = new Map();
+				configsUnionBySystem.put(system, configsUnion);
+				reqServCanBeProvided.~choosenProvidingConfigsBySystem = configsUnionBySystem;
+			}
+		}
+	}
+	
+	if(reqServicesAllocatedToMatchingProvService.forAll(reqServ | reqServ.~choosenProvidingConfigsBySystem.isDefined() and reqServ.~choosenProvidingConfigsBySystem.size() > 0)){
+		return true;
+	}
+	
+	return false;
+}
+
+
+operation SystemOfSystems!System determineConfigsThatCanProvideService(requiredServiceType : SystemOfSystems!FunctionalServiceType, listOfRequestedSystems : Sequence) : Sequence {
+	var configurationsThatProvideService = new Sequence();
+	for(config : SystemOfSystems!Configuration in self.configurations.sortBy(config | config.configurationRanking)){
+		if(config.canProvideService(requiredServiceType, self, listOfRequestedSystems)){
+			configurationsThatProvideService.add(config);
+		}	
+	}
+	return configurationsThatProvideService;
+}
+
+
+
+operation SystemOfSystems!FunctionalServiceType equals(other : SystemOfSystems!FunctionalServiceType) : Boolean {
+	return self.name = other.name;
+}
+
+operation SystemOfSystems!Configuration getSystemOfConfig() : SystemOfSystems!System{
+	return SystemOfSystems!System.all().selectOne(system | system.configurations.includes(self));
+}

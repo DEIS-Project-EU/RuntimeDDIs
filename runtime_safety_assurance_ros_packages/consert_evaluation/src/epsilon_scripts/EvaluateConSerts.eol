@@ -1,0 +1,660 @@
+/*
+MIT License
+
+Copyright (c) 2019 DEIS Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*SystemOfSystems!ConSert.all().println("allConSerts ");
+var anyConSert = SystemOfSystems!RequiredService.all();
+anyConSert.println("all sosConfigs ");
+if(anyConSert <> null){
+	var anyGate = anyConSert.gates.first();
+	println("ConSertFound ");
+	if(anyGate <> null){
+		var collectionOfSourceElements = anyConSert.guaranteePropagation.select(prop | prop.targetElement = self).collect(propWithGateAsTarget | propWithGateAsTarget.sourceElement);
+		collectionOfSourceElements.println("collectionOfSourceElements: ");
+	}
+}
+
+
+
+
+
+1. prüfen ob knoten mind. 1 required service hat
+1.1 wenn ja, für jeden req serv:
+1.1.1 für jede config{
+	prüfe zugeordnete provider config
+
+
+var a = SystemOfSystems!ASILLevel#ASIL_A;
+a.println("asil_a : ");
+
+var d = SystemOfSystems!ASILLevel#ASIL_D;
+d.println("asil_d : ");
+
+var dBiggerA = d.value > a.value;
+dBiggerA.println("D bigger A: ");
+*/
+
+
+
+setAllPropagationValuesToFalseForEachConSertInternalElementExceptOfRtE();
+setAllTreeNodesBackAsNotEvaluated();
+
+var evaluationResult = SystemOfSystems!ConSertEvaluationResult.createInstance();
+evaluationResult.choosenSystemConfigurationsByGuaranteedProvidedService = new Sequence();
+
+var systemOfSystemPackage = SystemOfSystems!SystemOfSystemPackage.all().first();
+systemOfSystemPackage.evaluationResult = evaluationResult;
+
+systemOfSystemPackage.evaluationResult.println("EVALUATION RESULT: ");
+
+var systemOfSystemsConfigs = SystemOfSystems!SystemOfSystemsConfig.all().sortBy(sosConfig | sosConfig.appServiceProvidingConfig.configurationRanking);
+
+for(sosConfig in systemOfSystemsConfigs){
+	// check for each provided app service if this config could serve the service. 
+	for(compTree in sosConfig.configCompositionTreesForProvidedAppServices){
+		setTempPropertyIsChoosenOfConfigNodesToFalse();
+		//setAllPropagationValuesToFalseForEachConSertInternalElementExceptOfRtE();
+		compTree.root.evaluate();
+		compTree.updateEvaluationResult(sosConfig, evaluationResult);
+		
+		// jump out of loops if at least one guarantee can be provided
+		if(evaluationResult.choosenSystemConfigurationsByGuaranteedProvidedService.size() > 0){
+			breakAll;
+		}
+	}
+}
+
+return evaluationResult;
+
+operation setTempPropertyIsChoosenOfConfigNodesToFalse(){
+	for(node : SystemOfSystems!ConfigTreeNode in SystemOfSystems!ConfigTreeNode.all()){
+		node.~isChoosen = false;
+	}
+}
+
+operation setAllPropagationValuesToFalseForEachConSertInternalElementExceptOfRtE(){
+	var allConSertInternalElementsExceptRtEs = SystemOfSystems!ConsertInternalElement.all().select(cie | not (SystemOfSystems.getTypeOf(cie).name = "RuntimeEvidence"));
+	for(conSertInternalElement in allConSertInternalElementsExceptRtEs){
+		conSertInternalElement.propagationValue = false;
+		conSertInternalElement.println("Propagation value is set to false for element: ");
+	}
+}
+
+operation setAllTreeNodesBackAsNotEvaluated(){
+	var treeNodes = SystemOfSystems!ConfigTreeNode.all();
+	for(treeNode in treeNodes){
+		treeNode.evaluated = false;
+	}
+}
+
+operation SystemOfSystems!ConfigCompositionTree updateEvaluationResult(sosConfig: SystemOfSystems!SystemOfSystemsConfig, evaluationResult : SystemOfSystems!ConSertEvaluationResult){
+	var rootNode = self.root;
+	
+	var appServiceOfCompTree = rootNode.serviceToBeProvided;
+	
+	var guaranteesOfAppService = appServiceOfCompTree.guarantees;
+	
+	"\n\n".println();
+	
+	var allGuarantees = SystemOfSystems!Guarantee.all();
+	for(g : Any in allGuarantees){
+		g.propagationValue.println("Propval for Guarantee " + g.name + " is :");
+	}
+	"\n\n".println();
+	
+	// get guarantees of appservice that can be provided sorted by their ranking
+	var guaranteesThatCanBeProvided = guaranteesOfAppService.select(guarantee | guarantee.propagationValue or guarantee.isDefaultGuarantee).sortBy(provGuarantee | provGuarantee.ranking);
+	
+	if(guaranteesThatCanBeProvided.size() > 0){
+		
+		// first guarantee in ordered sequence has best ranking
+		var bestGuarantee = guaranteesThatCanBeProvided.first();
+		
+		// create new provided app service information
+		var providedAppserviceInformation = SystemOfSystems!ProvidedAppserviceInformation.createInstance();
+		evaluationResult.choosenSystemConfigurationsByGuaranteedProvidedService.add(providedAppserviceInformation);
+		providedAppserviceInformation.providedAppservice = appServiceOfCompTree;
+		providedAppserviceInformation.guarantee = bestGuarantee;
+		providedAppserviceInformation.choosenSystemConfigurations = new Sequence();
+		
+		// create new object of ChoosenSystemConfiguration 
+		var choosenSystemConfigForAppServProvSystem = createChoosenSystemConfiguration(rootNode.system, rootNode.config);
+		
+		// add it to the choosenSystemConfiguration list of providedAppserviceInformation
+		providedAppserviceInformation.choosenSystemConfigurations.add(choosenSystemConfigForAppServProvSystem);
+		
+		var message = "For system of system configuration \"" + sosConfig.name + "\" the app service \"" + appServiceOfCompTree.name + "\" can be provided with guarantees : [" +  guaranteesThatCanBeProvided.collect(guarantee | guarantee.name).concat(",") + "], provided that following configurations are choosen: ";
+		
+		var choosenConfigNodes = SystemOfSystems!ConfigTreeNode.all().select(node | node.~isChoosen).asSet();
+		
+		for(choosenConfigNode in choosenConfigNodes){
+		
+			// create new object of ChoosenSystemConfiguration 
+			var choosenSystemConfig = createChoosenSystemConfiguration(choosenConfigNode.system, choosenConfigNode.config);
+						
+			// add it to the choosenSystemConfiguration list of providedAppserviceInformation
+			providedAppserviceInformation.choosenSystemConfigurations.add(choosenSystemConfig);
+		
+			var configNodeMessage = "\n -System \"" + choosenConfigNode.system.name + "\" with configuration \"" + choosenConfigNode.config.name + "\"";
+			message = message + configNodeMessage;  
+		}
+		
+		message.println();
+	}
+	else{
+		var canNotProvideAppServiceMessage = "App service \"" + appServiceOfCompTree.name + "\" can not be provided ";
+		canNotProvideAppServiceMessage.println();
+	}
+	
+}
+
+operation createChoosenSystemConfiguration(system : SystemOfSystems!System, configuration : SystemOfSystems!Configuration){
+	// create new object of ChoosenSystemConfiguration 
+	var choosenSystemConfig = SystemOfSystems!ChoosenSystemConfiguration.createInstance();
+	
+	// add information to it
+	choosenSystemConfig.system = system;
+	choosenSystemConfig.configuration = configuration;
+	
+	return choosenSystemConfig;
+}
+
+
+operation SystemOfSystems!ConfigCompositionTree printResult(sosConfig : SystemOfSystems!SystemOfSystemsConfig){
+	
+	var rootNode = self.root;
+	
+	var appServiceOfCompTree = rootNode.serviceToBeProvided;
+	
+	var guaranteesOfAppService = appServiceOfCompTree.guarantees;
+	
+	var guaranteesThatCanBeProvided = guaranteesOfAppService.select(guarantee | guarantee.propagationValue).sortBy(provGuarantee | provGuarantee.ranking);
+	
+	if(guaranteesThatCanBeProvided.size() > 0){
+		var choosenConfigNodes = SystemOfSystems!ConfigTreeNode.all().select(node | node.~isChoosen).asSet();
+		
+		var bestGuarantee = guaranteesThatCanBeProvided.first();
+		
+		var message = "For system of system configuration \"" + sosConfig.name + "\" the app service \"" + appServiceOfCompTree.name + "\" can be provided with guarantees : [" +  guaranteesThatCanBeProvided.collect(guarantee | guarantee.name).concat(",") + "], provided that following configurations are choosen: ";
+		
+		for(choosenConfigNode in choosenConfigNodes){
+			var configNodeMessage = "\n -System \"" + choosenConfigNode.system.name + "\" with configuration \"" + choosenConfigNode.config.name + "\"";
+			message = message + configNodeMessage;  
+		}
+		
+		message.println();
+	}
+	else{
+		var canNotProvideAppServiceMessage = "App service \"" + appServiceOfCompTree.name + "\" can not be provided ";
+		canNotProvideAppServiceMessage.println();
+	}
+}
+
+operation SystemOfSystems!ConfigTreeNode evaluate(){
+	self.config.name.println("Configname of node that will be evaluated: ");
+	if(self.config.conSert.invariant.isDefined()){
+		var invariant = self.config.conSert.invariant;
+		if(invariant <> null){
+			invariant.evaluate(self);
+			
+			if(not invariant.propagationValue){
+				self.config.name.println("Invariant for following Config is false!");
+				return; // this conSert can not provide any guarantees, because invariant has not been satisfied 
+			}
+		}
+	}
+
+	var readyForEvaluatingGuarantees = false;
+	
+	if(self.requiredChildNodesByService.size() > 0){
+		// foreach req service:
+		// var choosenConfig 
+		// check if any of allocated configs has been already choosen for another required service
+		// 		yes: choosenConfig = alreadyChoosenConfig
+		// 			 after wards perform match lookup of demands mapped to this req service and guarantees mapped to provided service (with same services type as req service).
+		//				--> if demands can be met, set a boolean flag "met" = true else set flag "met" = false; 
+		//		no : collect a mapping System -> Configs 
+		//			 foreach System in mapping from above
+		//			 		foreach configs in mapping (ordered by ranking)
+		// 						evaluate config (recursive call)
+		//						perform match lookup of demands mapped to this req service and guarantees mapped to provided service (with same services type as req service).
+		//						if at least one demand mapped to the required service can be met, 
+		//							1. set a flag for config, that it has been already choosen
+		//							2. set propagationValue for met demands = true
+		// end foreach req service;		
+		
+		//self.requiredChildNodesByService.println("Required child nodes of config " + self.config.name + ": ");
+		
+		for(reqChildNodesByReqServ : SystemOfSystems!RequiredChildConfigNodesByRequiredService in self.requiredChildNodesByService){
+		
+			var requiredService = reqChildNodesByReqServ.requiredService;
+			
+			
+		
+			reqChildNodesByReqServ.childNodesOfConfigsProvidingService.println("Required child nodes of config " + self.config.name + " for req service " +  requiredService.name + " : ");
+		
+			// check if a config node has been already choosen by evaluating the nodes for another required service
+			var alreadyChoosenConfigNode : SystemOfSystems!ConfigTreeNode;
+			for(childNode : SystemOfSystems!ConfigTreeNode in reqChildNodesByReqServ.childNodesOfConfigsProvidingService){
+				if(childNode.~isChoosen){
+					alreadyChoosenConfigNode = childNode;
+					break;
+				}
+			}
+			
+			// if there is a node already choosen, use this node for match lookup of demands and given guarantees
+			if(alreadyChoosenConfigNode <> null){
+				requiredService.lookupIfDemandsCanBeMet(alreadyChoosenConfigNode);
+			}
+			// search for first config which has guarantees which match at least one demand of this required service.
+			else{
+				var childConfigNodesOrderedByConfigRanking = reqChildNodesByReqServ.childNodesOfConfigsProvidingService.sortBy(childNode | childNode.config.configurationRanking);
+				
+				for(childConfigNode in childConfigNodesOrderedByConfigRanking){
+					// call this method recursively if child config node has not been evaluated yet
+					if(not childConfigNode.evaluated){
+						childConfigNode.evaluate();
+						childConfigNode.evaluated = true;
+					}
+					
+					var requiredServicesWhichNeedsTheSameSystem = self.getRequiredServicesWhichHaveSameChildNodes(reqChildNodesByReqServ);
+					
+					var configCanServeAllRequiredServices = true;
+
+					// check if at least one demand for each required service which needs same system is met. 
+					for(reqServiceWithSameChild in requiredServicesWhichNeedsTheSameSystem){
+						var demandsMappedToRequiredService = reqServiceWithSameChild.demands;
+						
+						// reset demands propagation value
+						for(demand in demandsMappedToRequiredService){
+							demand.propagationValue = false;
+						}
+						
+						reqServiceWithSameChild.lookupIfDemandsCanBeMet(childConfigNode);
+						var demandsMappedToRequiredService = reqServiceWithSameChild.demands;
+						
+						if(not(demandsMappedToRequiredService.exists(demand | demand.propagationValue))){
+							configCanServeAllRequiredServices = false;
+							break;
+						}
+					}
+					
+					// if this child config can serve all required services by matching at least one demand of the req services, set childConfigNode.~isChoosen = true and break loop
+					if(configCanServeAllRequiredServices){
+						childConfigNode.~isChoosen = true;
+						break;
+					}
+					// else continue with loop
+					
+					
+/*					requiredService.lookupIfDemandsCanBeMet(childConfigNode);
+					
+					// check if at least one demand (mapped to req service) is met. 
+					// if true, set childConfigNode.~isChoosen = true and break loop
+					if(demandsMappedToRequiredService.exists(demand | demand.propagationValue)){
+						childConfigNode.~isChoosen = true;
+						break;
+					}*/
+					 
+				}
+			}
+		}
+		
+		// check if each required service has at least one demand that can be met and therefore has its propagationValue set to true
+		// if this is the case set readyForEvaluatingGuarantees = true
+		var eachRequiredServiceHasAtLeastOneDemandThatCanBeServedByAGuarantee = true;
+		
+		for(reqServ in self.config.requiredServices){
+			var demandsMappedToReqServ = reqServ.demands;
+			
+			for(dem in demandsMappedToReqServ){
+				"".println("Demands mapped to req service of config " + self.config.name + " and required service " + reqServ.name + ": ");
+				"".println("Demand " + dem.name + " With val = " + dem.propagationValue);
+			}
+			
+			demandsMappedToReqServ.println("Demands mapped to req service of config " + self.config.name + " and required service " + reqServ.name + ": ");
+			
+			if(not demandsMappedToReqServ.exists(demand | demand.propagationValue)){
+				eachRequiredServiceHasAtLeastOneDemandThatCanBeServedByAGuarantee = false;
+				"".println("Not all types match");
+				break;
+			}
+		}
+		
+		readyForEvaluatingGuarantees = eachRequiredServiceHasAtLeastOneDemandThatCanBeServedByAGuarantee;
+	}
+	// this config node is a leaf node --> set readyForEvaluatingGuarantees = true
+	else{
+		readyForEvaluatingGuarantees = true;
+	}
+	
+	if(readyForEvaluatingGuarantees){
+		
+		// start evaluating all guarantees of this config's conSert
+		var guaranteesOfThisConSert = self.config.conSert.guarantees;
+		for(guarantee in guaranteesOfThisConSert){
+			
+			guarantee.checkIfCanBeProvided(self);
+		}
+		self.evaluated = true;
+	}
+}
+
+operation SystemOfSystems!ConfigTreeNode getRequiredServicesWhichHaveSameChildNodes(reqChildNodesByReqServ : SystemOfSystems!RequiredChildConfigNodesByRequiredService) : Sequence{
+	var allRequiredServicesWhichHaveSameChildNodes = new Sequence();
+	
+	var allChildNodesByReqServ = self.requiredChildNodesByService;
+	
+	allRequiredServicesWhichHaveSameChildNodes = allChildNodesByReqServ.select(mapping | mapping.childNodesOfConfigsProvidingService = reqChildNodesByReqServ.childNodesOfConfigsProvidingService).collect(childNodeByReqServ | childNodeByReqServ.requiredService);
+	//allRequiredServicesWhichHaveSameChildNodes.println();
+	
+	return allRequiredServicesWhichHaveSameChildNodes;
+}
+
+operation SystemOfSystems!FunctionalServiceType equals(other : SystemOfSystems!FunctionalServiceType) : Boolean{
+	return self.name = other.name;
+}
+
+
+operation SystemOfSystems!RequiredService lookupIfDemandsCanBeMet(choosenChildConfigNode : SystemOfSystems!ConfigTreeNode){
+	self.name.println("\nlookupIfDemandsCanBeMet for req service: ");
+	var demandsMappedToRequiredService = self.demands;
+
+	// get guarantees mapped to provided service with same service type as required service
+	var providedServiceWithSameServiceType = choosenChildConfigNode.config.providedServices.selectOne(provServ | provServ.functionalServiceType.equals(self.functionalServiceType));	
+	var propagatingGuaranteesOfChildNodeMappedToProvServWithSameServiceTypeAsRequiredService = providedServiceWithSameServiceType.guarantees.select(guarantee | guarantee.propagationValue);
+	
+	// check for each guarantee (that propagates value) if it can met a demand mapped to the required service				
+	for(guarantee in propagatingGuaranteesOfChildNodeMappedToProvServWithSameServiceTypeAsRequiredService){
+		for(demand in demandsMappedToRequiredService){
+			demand.evaluateIfMetByGuarantee(guarantee);
+		}
+	}
+}
+
+operation SystemOfSystems!Demand evaluateIfMetByGuarantee(guarantee : SystemOfSystems!Guarantee){
+	if(not checkMatchingIntegrityLevel(self.integrityLevel, guarantee.integrityLevel)){
+		return; // if integrity levels do not fit --> return
+	}
+	
+	
+	
+	"\n\nGuarantee and Demand matching".println();
+	
+	self.propagationValue.println("Demand " +  self.name + " propVal = ");
+	guarantee.propagationValue.println("Guarantee: " + guarantee.name + " propVal = ");
+	//self.name.println("Demand: ");
+	//guarantee.name.println("Guarantee: ");
+	
+	
+		
+//	guarantee.name.println("\n\nEvaluating demands with following guarantees: ");
+	//"\n\n".println();
+	
+	var counterForMatchedSafetyProperties = 0;
+	
+	for(safetyPropertyOfDemand in self.safetyProperties){
+		safetyPropertyOfDemand.println("safetyPropertyOfDemand: ");
+		for(safetyPropertyOfGuarantee in guarantee.safetyProperties){
+			safetyPropertyOfGuarantee.name.println("safetyPropertyOfGuarantee: ");
+			safetyPropertyOfDemand.safetyPropertyType.name.println("safetyPropertyOfDemand.safetyPropertyType: ");
+			safetyPropertyOfGuarantee.safetyPropertyType.name.println("safetyPropertyOfGuarantee.safetyPropertyType: ");
+			if(safetyPropertyOfDemand.safetyPropertyType.equals(safetyPropertyOfGuarantee.safetyPropertyType)){
+				//if(safetyPropertyOfDemand.equals(safetyPropertyOfGuarantee)){
+					var refinementCheckResult = checkMatchingRefinements(safetyPropertyOfDemand.refinement, safetyPropertyOfGuarantee.refinement);
+					refinementCheckResult.println("Refinement check result: ");
+				
+					if(refinementCheckResult){
+						if(checkMatchingIntegrityLevel(safetyPropertyOfDemand.integrityLevel, safetyPropertyOfGuarantee.integrityLevel)){
+							// all properties of current safety prop of demand are matching with current safety prop of guarantee --> increment counter and proceed with next safety property of demand 
+							"Counter will be increased".println();
+							counterForMatchedSafetyProperties = counterForMatchedSafetyProperties +1;
+							break;
+						}
+					}
+				//}
+			}
+		}
+	}
+	if(counterForMatchedSafetyProperties = self.safetyProperties.size()){
+		// all safety properties of demand could match to corresponding safety properties of guarantee --> this demand can propagate guarantee
+		self.propagationValue = true;
+	}
+	self.propagationValue.println("Result for propValue of demand: ");
+	"\n\n".println();
+}
+
+// this method return true if givent integrity levels are of the same type and integrityLevelOfProvidingElement >= integrityLevelOfRequestingElement
+// otherwise it will return false or in case of using a new integrity level type, the checking is not implemented for, it throws an exception
+operation checkMatchingIntegrityLevel(integrityLevelOfRequestingElement : SystemOfSystems!IntegrityLevel, integrityLevelOfProvidingElement : SystemOfSystems!IntegrityLevel) : Boolean{
+	// if integrity levels are of different types, return false, as these can not match
+	if(not (integrityLevelOfRequestingElement.integrityType = integrityLevelOfProvidingElement.integrityType)){
+		return false;
+	}
+		
+	// this switch case statement has to be updated when new types are added.
+	switch(integrityLevelOfRequestingElement.integrityType){
+		case SystemOfSystems!IntegrityType#SIL : {
+			return integrityLevelOfProvidingElement.silLevel.value >= integrityLevelOfRequestingElement.silLevel.value;
+		}
+		case SystemOfSystems!IntegrityType#ASIL : {
+			return integrityLevelOfProvidingElement.asilLevel.value >= integrityLevelOfRequestingElement.asilLevel.value;
+		}
+		case SystemOfSystems!IntegrityType#AgPL : {
+			return integrityLevelOfProvidingElement.agPLLevel.value >= integrityLevelOfRequestingElement.agPLLevel.value;
+		}
+	}
+	
+	throw "Comparison of integrity type " + integrityLevelOfRequestingElement.integrityType + " is not implemented yet."; 
+}
+
+
+operation SystemOfSystems!SafetyProperty equals(other : SystemOfSystems!SafetyProperty) : Boolean{
+	return self.name = other.name;
+}
+
+operation SystemOfSystems!SafetyPropertyType equals(other : SystemOfSystems!SafetyPropertyType) : Boolean{
+	return self.name = other.name;
+}
+
+
+operation checkMatchingRefinements(refinementOfSPOfDemand : SystemOfSystems!Refinement, refinementOfSPOfGuarantee : SystemOfSystems!Refinement) : Boolean{
+	// if both are null, both are not set and therefore do not have to be checked --> return true
+	
+	if(refinementOfSPOfDemand = null and refinementOfSPOfGuarantee = null){
+		return true;
+	}
+	
+	"Check Matching Refinements: ".println();
+	refinementOfSPOfDemand.name.println("Refinement of demand Name: ");
+	refinementOfSPOfDemand.description.println("Refinement of demand Description: ");
+	refinementOfSPOfGuarantee.name.println("Refinement of guarantee Name: ");
+	refinementOfSPOfGuarantee.description.println("Refinement of guarantee Description: ");
+	
+	// if both are not null check for name and description
+	if(refinementOfSPOfDemand <> null and refinementOfSPOfGuarantee <> null){
+		refinementOfSPOfDemand.name.length().println("Length of Demand ref name: ");
+		refinementOfSPOfGuarantee.name.length().println("Length of guarantee ref name: ");
+		//refinementOfSPOfDemand.description.length().println("Length of Demand ref description: ");
+		//refinementOfSPOfGuarantee.description.length().println("Length of guarantee ref description: ");
+		
+		var nameEquals : Boolean;
+		var descriptionEquals : Boolean;
+		
+		if(refinementOfSPOfDemand.name <> null and refinementOfSPOfGuarantee.name <> null){
+			"Names not null".println();
+			nameEquals = refinementOfSPOfDemand.name = refinementOfSPOfGuarantee.name;
+			
+			if(refinementOfSPOfDemand.description = null){
+				"Demand descriptions == null".println();
+			}
+			if(refinementOfSPOfGuarantee.description = null){
+				"Guarantee descriptions == null".println();
+			}
+		}
+		
+		if(refinementOfSPOfDemand.description <> null and refinementOfSPOfGuarantee.description <> null){
+			"Descriptions not null".println();
+			descriptionEquals = refinementOfSPOfDemand.description = refinementOfSPOfGuarantee.description;
+		}
+		nameEquals.println("Name equals: ");
+		descriptionEquals.println("Description equals: ");
+		
+		
+		
+		return (refinementOfSPOfDemand.name = refinementOfSPOfGuarantee.name);
+	}
+	
+	// at this point one of the refinements is null and the other is not --> can not be compared --> return false
+	return false;
+}
+
+operation SystemOfSystems!Invariant evaluate(currentConfigTreeNode : SystemOfSystems!ConfigTreeNode){
+	var parentConSert = currentConfigTreeNode.config.conSert;
+
+	var propagationWhereInvariantIsTarget = parentConSert.guaranteePropagation.selectOne(prop | prop.targetElement = self);
+	
+	if(propagationWhereInvariantIsTarget <> null){
+		var connectedElement = propagationWhereInvariantIsTarget.sourceElement;
+		connectedElement.evaluate(currentConfigTreeNode);
+		if(connectedElement.propagationValue){
+			self.propagationValue = true;
+		}
+	}
+		
+}
+
+
+operation SystemOfSystems!Guarantee checkIfCanBeProvided(currentConfigTreeNode : SystemOfSystems!ConfigTreeNode){
+	// default guarantees can be always provided
+	if(self.isDefaultGuarantee){
+		self.propagationValue = true;
+		return;
+	}
+	"\n\n".println();
+	self.name.println("Guarantee that is checked: ");
+	var parentConSert = currentConfigTreeNode.config.conSert;
+
+	var propagationWhereGuaranteeIsTarget = parentConSert.guaranteePropagation.selectOne(prop | prop.targetElement = self);
+	
+	
+	if(propagationWhereGuaranteeIsTarget <> null){
+	
+		"propagationWhereGuaranteeIsTarget".println();
+		propagationWhereGuaranteeIsTarget.sourceElement.println("Source: ");
+		propagationWhereGuaranteeIsTarget.targetElement.println("Target: ");
+	
+	
+		var connectedElement = propagationWhereGuaranteeIsTarget.sourceElement;
+		connectedElement.name.println("Connected Elemename: ");
+		connectedElement.evaluate(currentConfigTreeNode);
+		if(connectedElement.propagationValue){
+			self.propagationValue = true;
+		}
+	}
+	
+	self.propagationValue.print("ProVal: ");
+}
+
+operation SystemOfSystems!RuntimeEvidence evaluate(currentConfigTreeNode : SystemOfSystems!ConfigTreeNode) {
+	// method for further checks of runtime evidences instead of only checking boolean value
+	if(validRuntimeEvidenceIds.includes(self.globalId)){
+		self.propagationValue = true;
+	}
+	
+}
+
+operation SystemOfSystems!Demand evaluate(currentConfigTreeNode : SystemOfSystems!ConfigTreeNode) {
+	// method for further checks of demands instead of only checking boolean value
+}
+
+operation SystemOfSystems!ConSertGate evaluate(currentConfigTreeNode : SystemOfSystems!ConfigTreeNode) {
+	
+	self.name.println("Following gate is to be evaluated: ");
+	
+	switch(self.gateType){
+		case SystemOfSystems!ConSertGateType#AND : {
+			evaluateAndGate(self, currentConfigTreeNode);
+		}
+		case SystemOfSystems!ConSertGateType#OR : {
+			evaluateOrGate(self, currentConfigTreeNode);
+		}
+		default :{
+			throw "Given gate type " + self.gateType + " is not supported yet. Gate element: " + self;
+		} 
+		
+	}
+	self.propagationValue.println("propval for gate " + self.name + " : ");
+}
+
+operation evaluateAndGate(andGate : SystemOfSystems!ConSertGate, currentConfigTreeNode : SystemOfSystems!ConfigTreeNode) {
+	andGate.propagationValue = false;
+	
+	var parentConSert = currentConfigTreeNode.config.conSert;
+	
+	var inputElementsOfAndGate = parentConSert.guaranteePropagation.select(prop | prop.targetElement = andGate).collect(propWithGateAsTarget | propWithGateAsTarget.sourceElement);
+	//inputElementsOfAndGate.println("Input elements of gate " + andGate + ": ");
+	
+	inputElementsOfAndGate.println("Evaluating And gate with these inputs: ");
+	
+	for(inputElement in inputElementsOfAndGate){
+		inputElement.evaluate(currentConfigTreeNode);
+	}
+	
+	var allInputsAreTrue = true;
+	
+	for(inputElement in inputElementsOfAndGate){
+		inputElement.println("InputElement of AndGate: ");
+		if(not inputElement.propagationValue){
+			allInputsAreTrue = false;
+		}
+	}
+	
+	if(allInputsAreTrue){
+		andGate.propagationValue = true;
+	}
+	andGate.println("And Gate after evaluating: ");
+}
+
+operation evaluateOrGate(orGate : SystemOfSystems!ConSertGate, currentConfigTreeNode : SystemOfSystems!ConfigTreeNode){
+	orGate.propagationValue = false;
+	
+	
+	
+	
+	var parentConSert = currentConfigTreeNode.config.conSert;
+	
+	var inputElementsOfOrGate = parentConSert.guaranteePropagation.select(prop | prop.targetElement = orGate).collect(propWithGateAsTarget | propWithGateAsTarget.sourceElement);
+	inputElementsOfOrGate.println("Input elements of gate " + orGate.name + ": ");
+	
+	for(inputElement in inputElementsOfOrGate){
+		inputElement.evaluate(currentConfigTreeNode);
+		
+		
+		if(inputElement.propagationValue){
+			orGate.propagationValue = true;
+			return;
+		}
+	}
+}
+

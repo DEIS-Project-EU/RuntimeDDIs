@@ -1,0 +1,62 @@
+/*
+MIT License
+
+Copyright (c) 2019 DEIS Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+context SystemOfSystems!ConSert {
+
+	constraint DefaultGuaranteesAreNotConnectedToOtherConSertElements{
+	
+		check{
+			self.println("Check of ConSert ");
+			var connectedDefaultGuarantees = new Set();
+			
+			connectedDefaultGuarantees.addAll(self.guaranteePropagation.collect(prop | prop.sourceElement).select(sourceElement | SystemOfSystems.isOfType(sourceElement, "Guarantee") and sourceElement.isDefaultGuarantee));
+			connectedDefaultGuarantees.addAll(self.guaranteePropagation.collect(prop | prop.targetElement).select(targetElement | SystemOfSystems.isOfType(targetElement, "Guarantee") and targetElement.isDefaultGuarantee));
+			
+			connectedDefaultGuarantees.println("all connected guarantees: ");
+			if(connectedDefaultGuarantees.size() > 0){
+				return false;
+			}
+			return true;
+		}
+		
+		message : "Default guarantees must not be connected with other ConSert internal elements. Following default guarantees are connected to other conSert internal elements: " + connectedDefaultGuarantees
+	}
+	
+}
+
+context SystemOfSystems!ProvidedService {
+	constraint AtLeastOneGuaranteeIsConnected{
+		check: self.guarantees.size() > 0
+		message: "A provided service must be connected at least to one guarantee. Provided service " + self.name + " is not connected to any guarantees."
+	}
+}
+
+context SystemOfSystems!RequiredService{
+	constraint AtLeastOnDemandIsConnected{
+		check: self.demands.size() > 0
+		message: "A required service must be connected at least to one demand. Required service " + self.name + " is not connected to any demands."
+	}
+}
+
+

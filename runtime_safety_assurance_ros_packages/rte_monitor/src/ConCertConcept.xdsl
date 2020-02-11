@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- This network was created in GeNIe Academic, which can be used for educational and research purposes only -->
+<smile version="1.0" id="Network1" numsamples="10000" discsamples="10000">
+	<nodes>
+		<equation id="Distance_Folower">
+			<definition>Distance_Folower=5</definition>
+		</equation>
+		<equation id="SafeDistance">
+			<definition>SafeDistance=4.9</definition>
+		</equation>
+		<equation id="SafeDIstanceComparison">
+			<parents>Distance_Folower SafeDistance</parents>
+			<definition>SafeDIstanceComparison=Distance_Folower&gt;=SafeDistance</definition>
+			<discretization>
+				<interval label="NO" upper="0.1" />
+				<interval label="YES" upper="1" />
+			</discretization>
+		</equation>
+		<deterministic id="IstheDistanceSafe_">
+			<state id="YES" />
+			<state id="NO" />
+			<parents>SafeDIstanceComparison</parents>
+			<resultingstates>NO YES</resultingstates>
+		</deterministic>
+		<equation id="Speed1">
+			<definition>Speed1=52</definition>
+		</equation>
+		<equation id="SpeedLimit">
+			<definition>SpeedLimit=50</definition>
+		</equation>
+		<equation id="Compare2">
+			<parents>Speed1 SpeedLimit</parents>
+			<definition lower="0" upper="10">Compare2=Abs(Speed1-SpeedLimit)</definition>
+			<discretization>
+				<interval label="LessThan2" upper="2.1" />
+				<interval label="LessThan4" upper="4.1" />
+				<interval label="MoreThan4" upper="10" />
+			</discretization>
+		</equation>
+		<cpt id="ValidSpeedLimit_">
+			<state id="YES" />
+			<state id="NO" />
+			<probabilities>0.5 0.5</probabilities>
+		</cpt>
+		<equation id="CompareSpeed">
+			<parents>Speed1 SpeedLimit</parents>
+			<definition>CompareSpeed=Speed1&lt;=SpeedLimit</definition>
+			<discretization>
+				<interval label="NO" upper="0.1" />
+				<interval label="YES" upper="1" />
+			</discretization>
+		</equation>
+		<deterministic id="SpeedWithinLimit">
+			<state id="YES" />
+			<state id="NO" />
+			<parents>CompareSpeed</parents>
+			<resultingstates>NO YES</resultingstates>
+		</deterministic>
+		<deterministic id="SpeedCheck">
+			<state id="SpeedOK" />
+			<state id="LimitSpeed" />
+			<state id="SpeedCheckNotPossible" />
+			<parents>ValidSpeedLimit_ SpeedWithinLimit</parents>
+			<resultingstates>SpeedOK LimitSpeed SpeedCheckNotPossible SpeedCheckNotPossible</resultingstates>
+		</deterministic>
+		<cpt id="SG_Leader">
+			<state id="SG4" />
+			<state id="SG5" />
+			<state id="SG6" />
+			<parents>Compare2 SpeedCheck</parents>
+			<probabilities>1 0 0 1 0 0 0 0 1 1 0 0 0 1 0 0 0 1 1 0 0 0 0 1 0 0 1</probabilities>
+		</cpt>
+		<deterministic id="SGatLowerLevel">
+			<state id="SG1" />
+			<state id="SG2" />
+			<state id="SG3" />
+			<parents>IstheDistanceSafe_ SG_Leader</parents>
+			<resultingstates>SG1 SG2 SG3 SG3 SG3 SG3</resultingstates>
+		</deterministic>
+		<cpt id="RTE1">
+			<state id="YES" />
+			<state id="NO" />
+			<probabilities>0.5 0.5</probabilities>
+		</cpt>
+		<cpt id="RTE2">
+			<state id="YES" />
+			<state id="NO" />
+			<probabilities>0.5 0.5</probabilities>
+		</cpt>
+		<deterministic id="EvidenceQuality">
+			<state id="Good" />
+			<state id="Poor" />
+			<parents>RTE1 RTE2</parents>
+			<resultingstates>Good Poor Poor Poor</resultingstates>
+		</deterministic>
+		<deterministic id="SG">
+			<state id="SG1" />
+			<state id="SG2" />
+			<state id="SG3" />
+			<parents>SGatLowerLevel EvidenceQuality</parents>
+			<resultingstates>SG1 SG3 SG2 SG3 SG3 SG3</resultingstates>
+		</deterministic>
+	</nodes>
+	<extensions>
+		<genie version="1.0" app="GeNIe 2.3.3705.0 ACADEMIC" name="Network1" faultnameformat="nodestate">
+			<submodel id="Leader">
+				<name>Leader</name>
+				<interior color="e5f6f7" />
+				<outline color="000080" width="2" />
+				<font color="000000" name="Arial" size="8" />
+				<position>520 447 569 476</position>
+				<node id="Speed1">
+					<name>Speed1</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>565 555 617 587</position>
+					<barchart active="true" width="128" height="64" />
+				</node>
+				<node id="Compare2">
+					<name>Compare2</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>561 452 618 487</position>
+					<barchart active="true" width="128" height="72" />
+				</node>
+				<node id="SG_Leader">
+					<name>SG_Leader</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>557 270 627 300</position>
+					<barchart active="true" width="128" height="90" />
+				</node>
+				<node id="SpeedLimit">
+					<name>SpeedLimit</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>349 563 415 604</position>
+					<barchart active="true" width="128" height="64" />
+				</node>
+				<node id="CompareSpeed">
+					<name>CompareSpeed</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>354 450 440 503</position>
+					<barchart active="true" width="128" height="64" />
+				</node>
+				<node id="SpeedWithinLimit">
+					<name>SpeedWithinLimit</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>382 360 480 423</position>
+					<barchart active="true" />
+				</node>
+				<node id="ValidSpeedLimit_">
+					<name>ValidSpeedLimit?</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>243 370 336 428</position>
+				</node>
+				<node id="SpeedCheck">
+					<name>SpeedCheck</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>348 252 428 304</position>
+					<barchart active="true" width="128" height="72" />
+				</node>
+			</submodel>
+			<submodel id="Follower">
+				<name>Follower</name>
+				<interior color="e5f6f7" />
+				<outline color="000080" width="2" />
+				<font color="000000" name="Arial" size="8" />
+				<position>513 301 570 330</position>
+				<node id="RTE1">
+					<name>RTE1</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>856 166 899 192</position>
+				</node>
+				<node id="RTE2">
+					<name>RTE2</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>936 168 979 194</position>
+				</node>
+				<node id="EvidenceQuality">
+					<name>EvidenceQuality</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>860 94 987 125</position>
+					<barchart active="true" />
+				</node>
+				<node id="Distance_Folower">
+					<name>Distance@Folower</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>431 528 534 592</position>
+					<barchart active="true" width="128" height="64" />
+				</node>
+				<node id="SafeDistance">
+					<name>SafeDistance</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>590 524 693 588</position>
+					<barchart active="true" width="128" height="64" />
+				</node>
+				<node id="SafeDIstanceComparison">
+					<name>SafeDIstanceComparison</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>508 394 639 475</position>
+					<barchart active="true" width="175" height="64" />
+				</node>
+				<node id="IstheDistanceSafe_">
+					<name>IstheDistanceSafe?</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>521 303 632 375</position>
+					<barchart active="true" width="128" height="64" />
+				</node>
+				<node id="SGatLowerLevel">
+					<name>SGatLowerLevel</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>435 174 537 240</position>
+					<barchart active="true" width="128" height="72" />
+				</node>
+				<node id="SG">
+					<name>SG</name>
+					<interior color="e5f6f7" />
+					<outline color="000080" />
+					<font color="000000" name="Arial" size="8" />
+					<position>634 48 678 78</position>
+					<barchart active="true" width="128" height="72" />
+				</node>
+			</submodel>
+		</genie>
+	</extensions>
+</smile>

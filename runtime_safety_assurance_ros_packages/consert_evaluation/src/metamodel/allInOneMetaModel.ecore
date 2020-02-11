@@ -1,0 +1,212 @@
+<!--
+MIT License
+
+Copyright (c) 2019 DEIS Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="allInOne" nsURI="allInOnePkg" nsPrefix="allInOne">
+  <eClassifiers xsi:type="ecore:EClass" name="BaseElement" abstract="true">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="keyValueMaps" upperBound="-1"
+        eType="#//KeyValueMap" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="globalId" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="description" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="KeyValueMap">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="key" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="values" upperBound="-1"
+        eType="#//Value" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Value">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="tag" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Unit"/>
+  <eClassifiers xsi:type="ecore:EClass" name="IntegrityLevel" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="asilLevel" eType="#//ASILLevel"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="silLevel" eType="#//SILLevel"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="agPLLevel" eType="#//AgPLLevel"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="integrityType" eType="#//IntegrityType"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="IntegrityType">
+    <eLiterals name="SIL"/>
+    <eLiterals name="ASIL" value="1"/>
+    <eLiterals name="AgPL" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="SILLevel">
+    <eLiterals name="SIL_1"/>
+    <eLiterals name="SIL_2" value="1"/>
+    <eLiterals name="SIL_3" value="2"/>
+    <eLiterals name="SIL_4" value="3"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="ASILLevel">
+    <eLiterals name="QM"/>
+    <eLiterals name="ASIL_A" value="1"/>
+    <eLiterals name="ASIL_B" value="2"/>
+    <eLiterals name="ASIL_C" value="3"/>
+    <eLiterals name="ASIL_D" value="4"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="AgPLLevel">
+    <eLiterals name="AgPL_QM"/>
+    <eLiterals name="AgPL_A" value="1"/>
+    <eLiterals name="AgPL_B" value="2"/>
+    <eLiterals name="AgPL_C" value="3"/>
+    <eLiterals name="AgPL_D" value="4"/>
+    <eLiterals name="AgPL_E" value="5"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="System" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="configurations" lowerBound="1"
+        upperBound="-1" eType="#//Configuration" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="hasApplicationService"
+        eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Configuration" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="conSert" eType="#//ConSert"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="providedServices" lowerBound="1"
+        upperBound="-1" eType="#//ProvidedService" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="requiredServices" upperBound="-1"
+        eType="#//RequiredService" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="configurationRanking" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Service" abstract="true" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="functionalServiceType"
+        eType="#//FunctionalServiceType" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="RequiredService" eSuperTypes="#//Service">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="demands" upperBound="-1"
+        eType="#//Demand"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="allocatedProvidedServices"
+        upperBound="-1" eType="#//ProvidedService"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ProvidedService" eSuperTypes="#//Service">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="guarantees" upperBound="-1"
+        eType="#//Guarantee"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="allocatedRequiredService"
+        upperBound="-1" eType="#//RequiredService"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="isApplicationService" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="FunctionalServiceType" eSuperTypes="#//BaseElement"/>
+  <eClassifiers xsi:type="ecore:EClass" name="SystemOfSystemPackage" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="contributingSubSystems"
+        upperBound="-1" eType="#//System" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="serviceProvidingSystem"
+        lowerBound="1" eType="#//System" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="systemOfSystemsConfigs"
+        upperBound="-1" eType="#//SystemOfSystemsConfig" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="evaluationResult" eType="#//ConSertEvaluationResult"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SystemOfSystemsConfig" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="appServiceProvidingConfig"
+        eType="#//Configuration"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="configCompositionTreesForProvidedAppServices"
+        upperBound="-1" eType="#//ConfigCompositionTree" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ConfigCompositionTree" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="nodes" upperBound="-1"
+        eType="#//ConfigTreeNode" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="root" eType="#//ConfigTreeNode"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ConfigTreeNode" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="serviceToBeProvided" eType="#//ProvidedService"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="system" eType="#//System"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="config" eType="#//Configuration"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="requiredChildNodesByService"
+        upperBound="-1" eType="#//RequiredChildConfigNodesByRequiredService" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="evaluated" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="RequiredChildConfigNodesByRequiredService">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="requiredService" eType="#//RequiredService"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="childNodesOfConfigsProvidingService"
+        upperBound="-1" eType="#//ConfigTreeNode"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ConSertEvaluationResult">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="choosenSystemConfigurationsByGuaranteedProvidedService"
+        upperBound="-1" eType="#//ProvidedAppserviceInformation" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ProvidedAppserviceInformation">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="providedAppservice" eType="#//ProvidedService"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="guarantee" eType="#//Guarantee"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="choosenSystemConfigurations"
+        upperBound="-1" eType="#//ChoosenSystemConfiguration" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ChoosenSystemConfiguration">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="system" eType="#//System"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="configuration" eType="#//Configuration"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ConSert" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="guarantees" lowerBound="1"
+        upperBound="-1" eType="#//Guarantee" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="demands" upperBound="-1"
+        eType="#//Demand" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="runtimeEvidences" upperBound="-1"
+        eType="#//RuntimeEvidence" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="invariant" eType="#//Invariant"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="guaranteePropagation" upperBound="-1"
+        eType="#//GuaranteePropagation" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="gates" upperBound="-1"
+        eType="#//ConSertGate" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ConsertInternalElement" abstract="true"
+      eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="propagationValue" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SafetyRequirement" abstract="true" eSuperTypes="#//ConsertInternalElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="integrityLevel" eType="#//IntegrityLevel"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="safetyProperties" lowerBound="1"
+        upperBound="-1" eType="#//SafetyProperty" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Guarantee" eSuperTypes="#//SafetyRequirement">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="isDefaultGuarantee" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="ranking" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Demand" eSuperTypes="#//SafetyRequirement"/>
+  <eClassifiers xsi:type="ecore:EClass" name="RuntimeEvidence" eSuperTypes="#//SafetyRequirement"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Invariant" eSuperTypes="#//ConsertInternalElement"/>
+  <eClassifiers xsi:type="ecore:EClass" name="ConSertGate" eSuperTypes="#//ConsertInternalElement">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="gateType" eType="#//ConSertGateType"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="GuaranteePropagation">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="sourceElement" lowerBound="1"
+        eType="#//ConsertInternalElement"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="targetElement" lowerBound="1"
+        eType="#//ConsertInternalElement"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="ConSertGateType">
+    <eLiterals name="AND"/>
+    <eLiterals name="OR" value="1"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SafetyProperty" eSuperTypes="#//BaseElement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="refinement" eType="#//Refinement"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="safetyPropertyType" eType="#//SafetyPropertyType"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="integrityLevel" eType="#//IntegrityLevel"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Refinement" eSuperTypes="#//BaseElement"/>
+  <eClassifiers xsi:type="ecore:EClass" name="SafetyPropertyType" eSuperTypes="#//BaseElement"/>
+</ecore:EPackage>

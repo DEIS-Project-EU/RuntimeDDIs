@@ -1,0 +1,85 @@
+/*
+MIT License
+
+Copyright (c) 2019 DEIS Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+
+var emfTool = new Native("org.eclipse.epsilon.emc.emf.tools.EmfTool");
+var ecoreUtil = emfTool.ecoreUtil;
+
+
+ContributingSystem.println("Adding contr. system with sys: ");
+
+/*if(clearSoS){
+	clearSoS.println('Clearing system of System because value of param = ');
+	var allContents = SystemOfSystems.allContents();
+	delete allContents;
+}*/
+
+if(clearSoS = "true"){
+	clearSoS.println('Clearing system of System because value of param = ');
+	var allContents = SystemOfSystems.allContents();
+	delete allContents;
+}
+
+var sosPkg  = SystemOfSystems!SystemOfSystemPackage.allInstances().first();
+
+sosPkg.println('Already existing sosPkg: ');
+
+if(sosPkg = null){
+	"sosPkg = null".println();
+	sosPkg = SystemOfSystems!SystemOfSystemPackage.createInstance();
+}
+
+
+
+var allConSerts = ContributingSystem!ConSert.all();
+allConSerts.println("all conserts in contributing system: ");
+
+var contributingSystem = ContributingSystem!System.allInstances().first();
+contributingSystem.println("System to be copied into system of system: ");
+var contributingSystemClone = ecoreUtil.copy(contributingSystem);
+
+//systemId2ProvidingAppServiceMap.println("systemId2ProvidingAppServiceMap Content: ");
+
+// set has application service depending on given parameter "systemId2ProvidingAppServiceMap"
+/*if(systemId2ProvidingAppServiceMap.containsKey(contributingSystemClone.globalId)){
+	contributingSystemClone.hasApplicationService = systemId2ProvidingAppServiceMap.get(contributingSystemClone.globalId);
+}*/
+
+if(contributingSystem.globalId = idOfSystemProvidingAppServices){
+	sosPkg.serviceProvidingSystem = contributingSystemClone;
+	contributingSystemClone.hasApplicationService = true;
+}
+else{
+	sosPkg.contributingSubSystems.add(contributingSystemClone);
+	contributingSystemClone.hasApplicationService = false;
+}
+
+
+
+var systemsContainedInSystemOfSystems = SystemOfSystems!System.all();
+systemsContainedInSystemOfSystems.println("Systems contained in system of system: ");
+
+var allConSertsInSoS = SystemOfSystems!ConSert.all();
+allConSertsInSoS.println("all conserts in sos: ");
+
